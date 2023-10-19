@@ -1,0 +1,161 @@
+Select *
+From Portifoli_project..[Covid death]
+Where continent is not null 
+order by 3,4
+
+
+Select Location, date, total_cases, total_deaths, (CONVERT(float, total_deaths) / NULLIF(CONVERT(float, total_cases), 0))*100 as DeathPercentage
+From Portifoli_project..[Covid death]
+where  LOcation like 'India'and 
+continent is not null
+order by 1,2
+
+
+SELECT Location,date,Population,total_cases,(CONVERT(FLOAT, total_cases) / NULLIF(CONVERT(FLOAT, Population), 0)) * 100 AS PercentPopulationInfected
+FROM Portifoli_project..[Covid death]
+where  Location like 'India'
+ORDER BY 1, 2;
+
+Select continent, MAX(cast(Total_deaths as int)) as TotalDeathCount
+From Portifoli_project..[Covid death]
+Where continent is not null 
+Group by continent
+order by TotalDeathCount desc
+
+o/p:
+North America	1127152
+South America	704659
+Asia		532034
+Europe		400077
+Africa		102595
+Oceania		23188
+
+SELECT SUM(new_cases) AS total_cases,SUM(CAST(new_deaths AS INT)) AS total_deaths,(SUM(CAST(new_deaths AS INT)) * 100.0) / NULLIF(SUM(new_cases), 0) AS DeathPercentage
+FROM Portifoli_project..[Covid death]
+WHERE continent IS NOT NULL
+ORDER BY 1, 2;
+
+o/p:
+771271241	6967560	0.903386465047774
+
+SELECT dea.continent,dea.location,dea.date,dea.population,vac.new_vaccinations,
+    SUM(ISNULL(CONVERT(BIGINT, vac.new_vaccinations), 0)) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) as RollingPeopleVaccinated
+FROM Portifoli_project..[Covid death] dea
+JOIN Portifoli_project..[Covid vac] vac
+    ON dea.location = vac.location
+    AND dea.date = vac.date
+WHERE dea.continent IS NOT NULL
+ORDER BY 2, 3;
+
+O/P:
+Asia	Afghanistan	2020-01-03 00:00:00.000	41128772	NULL	0
+Asia	Afghanistan	2020-01-04 00:00:00.000	41128772	NULL	0
+Asia	Afghanistan	2020-01-05 00:00:00.000	41128772	NULL	0
+Asia	Afghanistan	2020-01-06 00:00:00.000	41128772	NULL	0
+Asia	Afghanistan	2020-01-07 00:00:00.000	41128772	NULL	0
+Asia	Afghanistan	2020-01-08 00:00:00.000	41128772	NULL	0
+Asia	Afghanistan	2020-01-09 00:00:00.000	41128772	NULL	0
+Asia	Afghanistan	2020-01-10 00:00:00.000	41128772	NULL	0
+Asia	Afghanistan	2020-01-11 00:00:00.000	41128772	NULL	0
+Asia	Afghanistan	2020-01-12 00:00:00.000	41128772	NULL	0
+..................................upto all data..........................
+
+
+SELECT dea.continent,dea.location,dea.date,dea.population,vac.new_vaccinations,SUM(ISNULL(CONVERT(BIGINT, vac.new_vaccinations), 0)) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) as RollingPeopleVaccinated
+FROM Portifoli_project..[Covid death] dea
+JOIN Portifoli_project..[Covid vac] vac
+ON dea.location = vac.location
+AND dea.date = vac.date
+WHERE dea.continent IS NOT NULL
+ORDER BY 2, 3;
+
+WITH PopvsVac (Continent, Location, Date, Population, New_Vaccinations, RollingPeopleVaccinated)
+AS
+(
+SELECT
+dea.continent,dea.location,dea.date,dea.population,vac.new_vaccinations,
+SUM(CONVERT(BIGINT, vac.new_vaccinations)) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.Date) as RollingPeopleVaccinated
+FROM [Covid death] dea
+JOIN [Covid vac] vac
+ON dea.location = vac.location
+AND dea.date = vac.date
+WHERE dea.continent IS NOT NULL
+)
+
+SELECT *, (RollingPeopleVaccinated / Population) * 100 AS VaccinationPercentage
+FROM PopvsVac
+
+
+O/P:
+Asia	Afghanistan	2020-01-03 00:00:00.000	41128772	NULL	NULL	NULL
+Asia	Afghanistan	2020-01-04 00:00:00.000	41128772	NULL	NULL	NULL
+Asia	Afghanistan	2020-01-05 00:00:00.000	41128772	NULL	NULL	NULL
+Asia	Afghanistan	2020-01-06 00:00:00.000	41128772	NULL	NULL	NULL
+Asia	Afghanistan	2020-01-07 00:00:00.000	41128772	NULL	NULL	NULL
+Asia	Afghanistan	2020-01-08 00:00:00.000	41128772	NULL	NULL	NULL
+Asia	Afghanistan	2020-01-09 00:00:00.000	41128772	NULL	NULL	NULL
+Asia	Afghanistan	2020-01-10 00:00:00.000	41128772	NULL	NULL	NULL
+Asia	Afghanistan	2020-01-11 00:00:00.000	41128772	NULL	NULL	NULL
+Asia	Afghanistan	2020-01-12 00:00:00.000	41128772	NULL	NULL	NULL
+..................................upto all data.....................................
+
+
+DROP Table if exists #PercentPopulationVaccinated
+Create Table #PercentPopulationVaccinated
+(
+Continent nvarchar(255),
+Location nvarchar(255),
+Date datetime,
+Population numeric,
+New_vaccinations numeric,
+RollingPeopleVaccinated numeric
+)
+
+
+
+Insert into #PercentPopulationVaccinated
+Select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
+, SUM(CONVERT(int, vac.new_vaccinations)) OVER (PARTITION BY dea.Location ORDER BY dea.location, dea.Date) as RollingPeopleVaccinated
+From [Covid death] dea
+Join [Covid vac] vac
+    ON dea.location = vac.location
+    AND dea.date = vac.date
+
+Select *, (CONVERT(FLOAT, RollingPeopleVaccinated) / NULLIF(Population, 0)) * 100 as VaccinationPercentage
+From #PercentPopulationVaccinated
+
+
+O/P:
+Asia	Afghanistan	2020-01-03 00:00:00.000	41128772	NULL	NULL	NULL
+Asia	Afghanistan	2020-01-04 00:00:00.000	41128772	NULL	NULL	NULL
+Asia	Afghanistan	2020-01-05 00:00:00.000	41128772	NULL	NULL	NULL
+Asia	Afghanistan	2020-01-06 00:00:00.000	41128772	NULL	NULL	NULL
+Asia	Afghanistan	2020-01-07 00:00:00.000	41128772	NULL	NULL	NULL
+Asia	Afghanistan	2020-01-08 00:00:00.000	41128772	NULL	NULL	NULL
+Asia	Afghanistan	2020-01-09 00:00:00.000	41128772	NULL	NULL	NULL
+Asia	Afghanistan	2020-01-10 00:00:00.000	41128772	NULL	NULL	NULL
+Asia	Afghanistan	2020-01-11 00:00:00.000	41128772	NULL	NULL	NULL
+Asia	Afghanistan	2020-01-12 00:00:00.000	41128772	NULL	NULL	NULL
+..................................upto all data.....................................
+
+
+DROP TABLE IF EXISTS #PercentPopulationVaccinated;
+
+CREATE TABLE #PercentPopulationVaccinated
+(
+    Continent nvarchar(255),
+    Location nvarchar(255),
+    Date datetime,
+    Population numeric,
+    New_vaccinations numeric,
+    RollingPeopleVaccinated numeric
+);
+
+INSERT INTO #PercentPopulationVaccinated
+SELECT dea.continent,dea.location,dea.date,dea.population,vac.new_vaccinations,
+    SUM(CONVERT(int, vac.new_vaccinations)) OVER (PARTITION BY dea.Location ORDER BY dea.location, dea.Date) as RollingPeopleVaccinated
+FROM [Covid death] dea
+JOIN [Covid vac] vacON dea.location = vac.locationAND dea.date = vac.date;
+SELECT * , (CONVERT(FLOAT, RollingPeopleVaccinated) / NULLIF(Population, 0)) * 100 as VaccinationPercentage
+FROM #PercentPopulationVaccinated;
+
